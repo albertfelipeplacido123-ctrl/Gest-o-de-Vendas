@@ -1,8 +1,7 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
-import { toast } from 'react-hot-toast';
 import { Ingredient, Recipe, Product, Sale, Loss, DeductedBatch, ProductionLog, IngredientEntry } from '../types';
-import { dataService } from '../services/dataService';
 
 interface AppState {
   ingredients: Ingredient[];
@@ -12,243 +11,308 @@ interface AppState {
   losses: Loss[];
   productionLogs: ProductionLog[];
   ingredientEntries: IngredientEntry[];
-  isLoading: boolean;
   
-  fetchData: () => Promise<void>;
-  addIngredient: (ingredient: Omit<Ingredient, 'id'>) => Promise<void>;
-  updateIngredient: (id: string, ingredient: Partial<Ingredient>, isQuickAdjust?: boolean, adjustAmount?: number) => Promise<void>;
-  deleteIngredient: (id: string) => Promise<void>;
+  addIngredient: (ingredient: Omit<Ingredient, 'id'>) => void;
+  updateIngredient: (id: string, ingredient: Partial<Ingredient>, isQuickAdjust?: boolean, adjustAmount?: number) => void;
+  deleteIngredient: (id: string) => void;
   
-  addRecipe: (recipe: Omit<Recipe, 'id'>) => Promise<void>;
-  updateRecipe: (id: string, recipe: Partial<Recipe>) => Promise<void>;
-  deleteRecipe: (id: string) => Promise<void>;
-  duplicateRecipe: (id: string) => Promise<void>;
+  addRecipe: (recipe: Omit<Recipe, 'id'>) => void;
+  updateRecipe: (id: string, recipe: Partial<Recipe>) => void;
+  deleteRecipe: (id: string) => void;
+  duplicateRecipe: (id: string) => void;
   
-  updateProduct: (id: string, product: Partial<Product>) => Promise<void>;
-  produceRecipe: (recipeId: string, batches: number, expirationDate: string) => Promise<void>;
+  updateProduct: (id: string, product: Partial<Product>) => void;
+  produceRecipe: (recipeId: string, batches: number, expirationDate: string) => void;
   
-  addSale: (sale: Omit<Sale, 'id'>) => Promise<void>;
-  deleteSale: (id: string) => Promise<void>;
-  registerLoss: (loss: Omit<Loss, 'id'>) => Promise<void>;
+  addSale: (sale: Omit<Sale, 'id'>) => void;
+  deleteSale: (id: string) => void;
+  registerLoss: (loss: Omit<Loss, 'id'>) => void;
 }
 
-export const useStore = create<AppState>((set, get) => ({
-  ingredients: [],
-  recipes: [],
-  products: [],
-  sales: [],
-  losses: [],
-  productionLogs: [],
-  ingredientEntries: [],
-  isLoading: false,
-  
-  fetchData: async () => {
-    set({ isLoading: true });
-    try {
-      const [ingredients, recipes, products, sales, losses, productionLogs, ingredientEntries] = await Promise.all([
-        dataService.getIngredients(),
-        dataService.getRecipes(),
-        dataService.getProducts(),
-        dataService.getSales(),
-        dataService.getLosses(),
-        dataService.getProductionLogs(),
-        dataService.getIngredientEntries()
-      ]);
+export const useStore = create<AppState>()(
+  persist(
+    (set) => ({
+      ingredients: [],
+      recipes: [],
+      products: [],
+      sales: [],
+      losses: [],
+      productionLogs: [],
+      ingredientEntries: [],
       
-      set({ 
-        ingredients, 
-        recipes, 
-        products, 
-        sales, 
-        losses, 
-        productionLogs, 
-        ingredientEntries,
-        isLoading: false 
-      });
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      set({ isLoading: false });
-    }
-  },
+      addIngredient: (ingredient) => set((state) => {
+        const id = uuidv4();
+        const newEntry: IngredientEntry = {
+          id: uuidv4(),
+          ingredientId: id,
+          ingredientName: ingredient.name,
+          quantity: ingredient.stockQuantity,
+          unit: ingredient.unit,
+          costPerUnit: ingredient.costPerUnit,
+          totalCost: ingredient.stockQuantity * ingredient.costPerUnit,
+          date: new Date().toISOString()
+        };
+        
+        return {
+          ingredients: [...state.ingredients, { 
+            ...ingredient, 
+            id,
+            costHistory: [{
+              date: new Date().toISOString(),
+              costPerUnit: ingredient.costPerUnit
+            }]
+          }],
+          ingredientEntries: [...(state.ingredientEntries || []), newEntry]
+        };
+      }),
+      
+      updateIngredient: (id, ingredient, isQuickAdjust, adjustAmount) => set((state) => {
+        const updatedIngredients = state.ingredients.map(i => {
+          if (i.id === id) {
+            const newCost = ingredient.costPerUnit;
+            const updatedHistory = [...(i.costHistory || [])];
+            
+            // If cost is changing, add to history
+            if (newCost !== undefined && newCost !== i.costPerUnit) {
+              updatedHistory.push({
+                date: ingredient.entryDate ? new Date(ingredient.entryDate + 'T12:00:00').toISOString() : new Date().toISOString(),
+                costPerUnit: newCost
+              });
+            }
+            
+            return { ...i, ...ingredient, costHistory: updatedHistory };
+          }
+          return i;
+        });
 
-  addIngredient: async (ingredient) => {
-    const toastId = toast.loading('Salvando ingrediente...');
-    try {
-      const newIngredient = await dataService.addIngredient(ingredient);
-      set((state) => ({
-        ingredients: [...state.ingredients, newIngredient]
-      }));
-      toast.success('Ingrediente salvo com sucesso!', { id: toastId });
-    } catch (error: any) {
-      console.error('Error adding ingredient:', error);
-      toast.error(`Erro ao salvar: ${error.message || 'Verifique sua conexão'}`, { id: toastId });
-    }
-  },
-  
-  updateIngredient: async (id, ingredient, isQuickAdjust, adjustAmount) => {
-    const toastId = toast.loading('Atualizando...');
-    try {
-      const updatedIngredient = await dataService.updateIngredient(id, ingredient);
-      set((state) => ({
-        ingredients: state.ingredients.map(i => i.id === id ? updatedIngredient : i)
-      }));
-      toast.success('Atualizado com sucesso!', { id: toastId });
-    } catch (error: any) {
-      console.error('Error updating ingredient:', error);
-      toast.error(`Erro ao atualizar: ${error.message || 'Verifique sua conexão'}`, { id: toastId });
-    }
-  },
-  
-  deleteIngredient: async (id) => {
-    const toastId = toast.loading('Excluindo...');
-    try {
-      await dataService.deleteIngredient(id);
-      set((state) => ({
+        // Add entry if it's a quick adjust 'in'
+        let newEntries = state.ingredientEntries || [];
+        if (isQuickAdjust && adjustAmount && adjustAmount > 0) {
+          const ing = state.ingredients.find(i => i.id === id);
+          if (ing) {
+            const newEntry: IngredientEntry = {
+              id: uuidv4(),
+              ingredientId: id,
+              ingredientName: ing.name,
+              quantity: adjustAmount,
+              unit: ing.unit,
+              costPerUnit: ingredient.costPerUnit || ing.costPerUnit,
+              totalCost: adjustAmount * (ingredient.costPerUnit || ing.costPerUnit),
+              date: ingredient.entryDate ? new Date(ingredient.entryDate + 'T12:00:00').toISOString() : new Date().toISOString()
+            };
+            newEntries = [...newEntries, newEntry];
+          }
+        }
+
+        return {
+          ingredients: updatedIngredients,
+          ingredientEntries: newEntries
+        };
+      }),
+      
+      deleteIngredient: (id) => set((state) => ({
         ingredients: state.ingredients.filter(i => i.id !== id)
-      }));
-      toast.success('Excluído com sucesso!', { id: toastId });
-    } catch (error: any) {
-      console.error('Error deleting ingredient:', error);
-      toast.error(`Erro ao excluir: ${error.message || 'Verifique sua conexão'}`, { id: toastId });
-    }
-  },
-  
-  addRecipe: async (recipe) => {
-    const toastId = toast.loading('Criando receita...');
-    try {
-      const newRecipe = await dataService.addRecipe(recipe);
-      const [recipes, products] = await Promise.all([
-        dataService.getRecipes(),
-        dataService.getProducts()
-      ]);
-      set({ recipes, products });
-      toast.success('Receita criada com sucesso!', { id: toastId });
-    } catch (error: any) {
-      console.error('Error adding recipe:', error);
-      toast.error(`Erro ao criar receita: ${error.message || 'Verifique sua conexão'}`, { id: toastId });
-    }
-  },
-  
-  updateRecipe: async (id, recipe) => {
-    // Implementation for updateRecipe in Supabase would be similar to addRecipe
-    // For now, let's just update local state and assume we'll implement the service later
-    set((state) => ({
-      recipes: state.recipes.map(r => r.id === id ? { ...r, ...recipe } : r)
-    }));
-  },
-  
-  deleteRecipe: async (id) => {
-    // Implementation for deleteRecipe in Supabase
-    set((state) => ({
-      recipes: state.recipes.filter(r => r.id !== id),
-      products: state.products.filter(p => p.recipeId !== id)
-    }));
-  },
-  
-  duplicateRecipe: async (id) => {
-    const recipeToDuplicate = get().recipes.find(r => r.id === id);
-    if (!recipeToDuplicate) return;
-    
-    const { id: _, ...recipeData } = recipeToDuplicate;
-    await get().addRecipe({
-      ...recipeData,
-      name: `${recipeData.name} (Cópia)`
-    });
-  },
-  
-  updateProduct: async (id, product) => {
-    set((state) => ({
-      products: state.products.map(p => p.id === id ? { ...p, ...product } : p)
-    }));
-  },
-  
-  produceRecipe: async (recipeId, batches, expirationDate) => {
-    // This involves multiple updates: ingredients stock, product stock, new batch, production log
-    // Ideally this should be a transaction in Supabase or a RPC call.
-    // For now, let's just update local state and assume we'll implement the service later
-    set((state) => {
-      const recipe = state.recipes.find(r => r.id === recipeId);
-      if (!recipe) return state;
+      })),
       
-      const updatedIngredients = state.ingredients.map(ing => {
-        const recipeIng = recipe.ingredients.find(ri => ri.ingredientId === ing.id);
-        if (recipeIng) {
-          return { ...ing, stockQuantity: ing.stockQuantity - (recipeIng.quantity * batches) };
-        }
-        return ing;
-      });
+      addRecipe: (recipe) => set((state) => {
+        const newRecipe = { ...recipe, id: uuidv4() };
+        const newProduct: Product = {
+          id: uuidv4(),
+          recipeId: newRecipe.id,
+          stock: 0,
+          batches: [],
+        };
+        return {
+          recipes: [...state.recipes, newRecipe],
+          products: [...state.products, newProduct]
+        };
+      }),
       
-      const updatedProducts = state.products.map(p => {
-        if (p.recipeId === recipeId) {
-          const newBatch = {
-            id: uuidv4(),
-            quantity: recipe.yield * batches,
-            productionDate: new Date().toISOString(),
-            expirationDate: expirationDate
-          };
-          return { 
-            ...p, 
-            stock: p.stock + newBatch.quantity,
-            batches: [...(p.batches || []), newBatch]
-          };
-        }
-        return p;
-      });
-
-      const newLog: ProductionLog = {
-        id: uuidv4(),
-        recipeId: recipeId,
-        recipeName: recipe.name,
-        batches: batches,
-        totalQuantity: recipe.yield * batches,
-        date: new Date().toISOString(),
-        expirationDate: expirationDate
-      };
+      updateRecipe: (id, recipe) => set((state) => ({
+        recipes: state.recipes.map(r => r.id === id ? { ...r, ...recipe } : r)
+      })),
       
-      return {
-        ingredients: updatedIngredients,
-        products: updatedProducts,
-        productionLogs: [...(state.productionLogs || []), newLog]
-      };
-    });
-  },
-  
-  addSale: async (sale) => {
-    const toastId = toast.loading('Registrando venda...');
-    try {
-      const newSale = await dataService.addSale(sale);
-      set((state) => ({
-        sales: [...state.sales, newSale]
-      }));
-      const products = await dataService.getProducts();
-      set({ products });
-      toast.success('Venda registrada!', { id: toastId });
-    } catch (error: any) {
-      console.error('Error adding sale:', error);
-      toast.error(`Erro ao vender: ${error.message || 'Verifique sua conexão'}`, { id: toastId });
-    }
-  },
+      deleteRecipe: (id) => set((state) => ({
+        recipes: state.recipes.filter(r => r.id !== id),
+        products: state.products.filter(p => p.recipeId !== id)
+      })),
+      
+      duplicateRecipe: (id) => set((state) => {
+        const recipeToDuplicate = state.recipes.find(r => r.id === id);
+        if (!recipeToDuplicate) return state;
+        
+        const newRecipe = { 
+          ...recipeToDuplicate, 
+          id: uuidv4(), 
+          name: `${recipeToDuplicate.name} (Cópia)` 
+        };
+        
+        const newProduct: Product = {
+          id: uuidv4(),
+          recipeId: newRecipe.id,
+          stock: 0,
+          batches: [],
+        };
+        
+        return {
+          recipes: [...state.recipes, newRecipe],
+          products: [...state.products, newProduct]
+        };
+      }),
+      
+      updateProduct: (id, product) => set((state) => ({
+        products: state.products.map(p => p.id === id ? { ...p, ...product } : p)
+      })),
+      
+      produceRecipe: (recipeId, batches, expirationDate) => set((state) => {
+        const recipe = state.recipes.find(r => r.id === recipeId);
+        if (!recipe) return state;
+        
+        const updatedIngredients = state.ingredients.map(ing => {
+          const recipeIng = recipe.ingredients.find(ri => ri.ingredientId === ing.id);
+          if (recipeIng) {
+            return { ...ing, stockQuantity: ing.stockQuantity - (recipeIng.quantity * batches) };
+          }
+          return ing;
+        });
+        
+        const updatedProducts = state.products.map(p => {
+          if (p.recipeId === recipeId) {
+            const newBatch = {
+              id: uuidv4(),
+              quantity: recipe.yield * batches,
+              productionDate: new Date().toISOString(),
+              expirationDate: expirationDate
+            };
+            return { 
+              ...p, 
+              stock: p.stock + newBatch.quantity,
+              batches: [...(p.batches || []), newBatch]
+            };
+          }
+          return p;
+        });
 
-  deleteSale: async (id) => {
-    // Implementation for deleteSale in Supabase
-    set((state) => ({
-      sales: state.sales.filter(s => s.id !== id)
-    }));
-  },
+        const newLog: ProductionLog = {
+          id: uuidv4(),
+          recipeId: recipeId,
+          recipeName: recipe.name,
+          batches: batches,
+          totalQuantity: recipe.yield * batches,
+          date: new Date().toISOString(),
+          expirationDate: expirationDate
+        };
+        
+        return {
+          ingredients: updatedIngredients,
+          products: updatedProducts,
+          productionLogs: [...(state.productionLogs || []), newLog]
+        };
+      }),
+      
+      addSale: (sale) => set((state) => {
+        const product = state.products.find(p => p.id === sale.productId);
+        if (!product) return state;
+        
+        const deductedBatches: DeductedBatch[] = [];
+        let remainingToDeduct = sale.quantity;
+        
+        const updatedProducts = state.products.map(p => {
+          if (p.id === sale.productId) {
+            const sortedBatches = [...(p.batches || [])].sort((a, b) => new Date(a.expirationDate).getTime() - new Date(b.expirationDate).getTime());
+            
+            const newBatches = sortedBatches.map(b => {
+              if (remainingToDeduct <= 0) return b;
+              if (b.quantity <= remainingToDeduct) {
+                deductedBatches.push({ batchId: b.id, quantity: b.quantity, productionDate: b.productionDate, expirationDate: b.expirationDate });
+                remainingToDeduct -= b.quantity;
+                return { ...b, quantity: 0 };
+              } else {
+                deductedBatches.push({ batchId: b.id, quantity: remainingToDeduct, productionDate: b.productionDate, expirationDate: b.expirationDate });
+                const updatedBatch = { ...b, quantity: b.quantity - remainingToDeduct };
+                remainingToDeduct = 0;
+                return updatedBatch;
+              }
+            }).filter(b => b.quantity > 0);
 
-  registerLoss: async (loss) => {
-    const toastId = toast.loading('Registrando perda...');
-    try {
-      const newLoss = await dataService.addLoss(loss);
-      set((state) => ({
-        losses: [...state.losses, newLoss]
-      }));
-      const products = await dataService.getProducts();
-      set({ products });
-      toast.success('Perda registrada!', { id: toastId });
-    } catch (error: any) {
-      console.error('Error registering loss:', error);
-      toast.error(`Erro ao registrar perda: ${error.message || 'Verifique sua conexão'}`, { id: toastId });
+            return { ...p, stock: p.stock - sale.quantity, batches: newBatches };
+          }
+          return p;
+        });
+        
+        return {
+          sales: [...state.sales, { ...sale, id: uuidv4(), deductedBatches }],
+          products: updatedProducts
+        };
+      }),
+
+      deleteSale: (id) => set((state) => {
+        const sale = state.sales.find(s => s.id === id);
+        if (!sale) return state;
+        
+        const updatedProducts = state.products.map(p => {
+          if (p.id === sale.productId) {
+            let newBatches = [...(p.batches || [])];
+            
+            if (sale.deductedBatches && sale.deductedBatches.length > 0) {
+              sale.deductedBatches.forEach(db => {
+                const existingBatch = newBatches.find(b => b.id === db.batchId);
+                if (existingBatch) {
+                  existingBatch.quantity += db.quantity;
+                } else {
+                  newBatches.push({
+                    id: db.batchId,
+                    quantity: db.quantity,
+                    productionDate: db.productionDate,
+                    expirationDate: db.expirationDate
+                  });
+                }
+              });
+            } else {
+              newBatches.push({
+                id: uuidv4(),
+                quantity: sale.quantity,
+                productionDate: new Date().toISOString(),
+                expirationDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+              });
+            }
+            
+            newBatches.sort((a, b) => new Date(a.expirationDate).getTime() - new Date(b.expirationDate).getTime());
+            
+            return { ...p, stock: p.stock + sale.quantity, batches: newBatches };
+          }
+          return p;
+        });
+        
+        return {
+          sales: state.sales.filter(s => s.id !== id),
+          products: updatedProducts
+        };
+      }),
+
+      registerLoss: (loss) => set((state) => {
+        const updatedProducts = state.products.map(p => {
+          if (p.id === loss.productId) {
+            const newBatches = (p.batches || []).map(b => {
+              if (b.id === loss.batchId) {
+                return { ...b, quantity: Math.max(0, b.quantity - loss.quantity) };
+              }
+              return b;
+            }).filter(b => b.quantity > 0);
+            
+            return { ...p, stock: Math.max(0, p.stock - loss.quantity), batches: newBatches };
+          }
+          return p;
+        });
+        
+        return {
+          losses: [...(state.losses || []), { ...loss, id: uuidv4() }],
+          products: updatedProducts
+        };
+      }),
+    }),
+    {
+      name: 'confeitaria-storage',
     }
-  },
-}));
+  )
+);

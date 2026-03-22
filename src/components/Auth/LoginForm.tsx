@@ -2,7 +2,6 @@ import { useState, FormEvent } from 'react';
 import { Eye, EyeOff, Mail, Lock, Loader2 } from 'lucide-react';
 import { loginUser } from '../../services/authService';
 import { AuthSession } from '../../types';
-import { useStore } from '../../store/useStore';
 
 interface LoginFormProps {
   onSuccess: (session: AuthSession) => void;
@@ -16,7 +15,6 @@ export default function LoginForm({ onSuccess, onToggleRegister }: LoginFormProp
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const fetchData = useStore(state => state.fetchData);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -25,7 +23,6 @@ export default function LoginForm({ onSuccess, onToggleRegister }: LoginFormProp
 
     try {
       const session = await loginUser(email, password, rememberMe);
-      await fetchData();
       onSuccess(session);
     } catch (err: any) {
       setError(err.message || 'Ocorreu um erro ao entrar.');
