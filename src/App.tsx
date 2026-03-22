@@ -10,6 +10,7 @@ import LoginForm from './components/Auth/LoginForm';
 import RegisterForm from './components/Auth/RegisterForm';
 import { getSession, logoutUser } from './services/authService';
 import { AuthSession } from './types';
+import { useStore } from './store/useStore';
 
 type Tab = 'dashboard' | 'recipes' | 'inventory' | 'products' | 'sales';
 type AuthView = 'login' | 'register';
@@ -19,17 +20,20 @@ export default function App() {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [authView, setAuthView] = useState<AuthView>('login');
   const [isInitializing, setIsInitializing] = useState(true);
+  const fetchData = useStore(state => state.fetchData);
+  const isLoading = useStore(state => state.isLoading);
 
   useEffect(() => {
     const initSession = async () => {
       const activeSession = await getSession();
       if (activeSession) {
         setSession(activeSession);
+        fetchData();
       }
       setIsInitializing(false);
     };
     initSession();
-  }, []);
+  }, [fetchData]);
 
   const handleLogout = () => {
     logoutUser();
@@ -37,10 +41,13 @@ export default function App() {
     setAuthView('login');
   };
 
-  if (isInitializing) {
+  if (isInitializing || (session && isLoading)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
+          <p className="text-gray-600 font-medium">Sincronizando seus dados...</p>
+        </div>
       </div>
     );
   }
