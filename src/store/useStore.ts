@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
+import { toast } from 'react-hot-toast';
 import { Ingredient, Recipe, Product, Sale, Loss, DeductedBatch, ProductionLog, IngredientEntry } from '../types';
 import { dataService } from '../services/dataService';
 
@@ -71,51 +72,60 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   addIngredient: async (ingredient) => {
+    const toastId = toast.loading('Salvando ingrediente...');
     try {
       const newIngredient = await dataService.addIngredient(ingredient);
       set((state) => ({
         ingredients: [...state.ingredients, newIngredient]
       }));
-    } catch (error) {
+      toast.success('Ingrediente salvo com sucesso!', { id: toastId });
+    } catch (error: any) {
       console.error('Error adding ingredient:', error);
+      toast.error(`Erro ao salvar: ${error.message || 'Verifique sua conexão'}`, { id: toastId });
     }
   },
   
   updateIngredient: async (id, ingredient, isQuickAdjust, adjustAmount) => {
+    const toastId = toast.loading('Atualizando...');
     try {
       const updatedIngredient = await dataService.updateIngredient(id, ingredient);
       set((state) => ({
         ingredients: state.ingredients.map(i => i.id === id ? updatedIngredient : i)
       }));
-    } catch (error) {
+      toast.success('Atualizado com sucesso!', { id: toastId });
+    } catch (error: any) {
       console.error('Error updating ingredient:', error);
+      toast.error(`Erro ao atualizar: ${error.message || 'Verifique sua conexão'}`, { id: toastId });
     }
   },
   
   deleteIngredient: async (id) => {
+    const toastId = toast.loading('Excluindo...');
     try {
       await dataService.deleteIngredient(id);
       set((state) => ({
         ingredients: state.ingredients.filter(i => i.id !== id)
       }));
-    } catch (error) {
+      toast.success('Excluído com sucesso!', { id: toastId });
+    } catch (error: any) {
       console.error('Error deleting ingredient:', error);
+      toast.error(`Erro ao excluir: ${error.message || 'Verifique sua conexão'}`, { id: toastId });
     }
   },
   
   addRecipe: async (recipe) => {
+    const toastId = toast.loading('Criando receita...');
     try {
       const newRecipe = await dataService.addRecipe(recipe);
-      // After adding recipe, we should probably re-fetch to get the full object with relations
-      // or manually update the state if we have all info.
-      // For simplicity, let's re-fetch recipes and products
       const [recipes, products] = await Promise.all([
         dataService.getRecipes(),
         dataService.getProducts()
       ]);
       set({ recipes, products });
-    } catch (error) {
+      toast.success('Receita criada com sucesso!', { id: toastId });
+    } catch (error: any) {
       console.error('Error adding recipe:', error);
+      toast.error(`Erro ao criar receita: ${error.message || 'Verifique sua conexão'}`, { id: toastId });
     }
   },
   
@@ -204,16 +214,18 @@ export const useStore = create<AppState>((set, get) => ({
   },
   
   addSale: async (sale) => {
+    const toastId = toast.loading('Registrando venda...');
     try {
       const newSale = await dataService.addSale(sale);
       set((state) => ({
         sales: [...state.sales, newSale]
       }));
-      // We also need to update product stock
       const products = await dataService.getProducts();
       set({ products });
-    } catch (error) {
+      toast.success('Venda registrada!', { id: toastId });
+    } catch (error: any) {
       console.error('Error adding sale:', error);
+      toast.error(`Erro ao vender: ${error.message || 'Verifique sua conexão'}`, { id: toastId });
     }
   },
 
@@ -225,16 +237,18 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   registerLoss: async (loss) => {
+    const toastId = toast.loading('Registrando perda...');
     try {
       const newLoss = await dataService.addLoss(loss);
       set((state) => ({
         losses: [...state.losses, newLoss]
       }));
-      // We also need to update product stock
       const products = await dataService.getProducts();
       set({ products });
-    } catch (error) {
+      toast.success('Perda registrada!', { id: toastId });
+    } catch (error: any) {
       console.error('Error registering loss:', error);
+      toast.error(`Erro ao registrar perda: ${error.message || 'Verifique sua conexão'}`, { id: toastId });
     }
   },
 }));

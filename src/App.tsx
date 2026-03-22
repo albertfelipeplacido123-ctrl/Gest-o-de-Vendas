@@ -1,5 +1,6 @@
 import { useState, ReactNode, useEffect } from 'react';
 import { LayoutDashboard, ChefHat, Boxes, Package, ShoppingCart, LogOut, User as UserIcon } from 'lucide-react';
+import { Toaster } from 'react-hot-toast';
 import DashboardScreen from './screens/DashboardScreen';
 import RecipesScreen from './screens/RecipesScreen';
 import InventoryScreen from './screens/InventoryScreen';
@@ -22,6 +23,15 @@ export default function App() {
   const [isInitializing, setIsInitializing] = useState(true);
   const fetchData = useStore(state => state.fetchData);
   const isLoading = useStore(state => state.isLoading);
+  const [isSupabaseConfigured, setIsSupabaseConfigured] = useState(true);
+
+  useEffect(() => {
+    const url = import.meta.env.VITE_SUPABASE_URL;
+    const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    if (!url || !key || url.includes('placeholder') || key.includes('placeholder')) {
+      setIsSupabaseConfigured(false);
+    }
+  }, []);
 
   useEffect(() => {
     const initSession = async () => {
@@ -86,6 +96,15 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 text-gray-900 font-sans">
+      <Toaster position="top-right" />
+      
+      {!isSupabaseConfigured && (
+        <div className="bg-red-600 text-white p-3 text-center text-sm font-bold animate-pulse">
+          ⚠️ Supabase não configurado! Os dados NÃO serão salvos. 
+          <span className="block font-normal text-xs opacity-90">Configure as chaves VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY.</span>
+        </div>
+      )}
+
       <header className="bg-black text-white p-4 shadow-md z-10 flex justify-between items-center shrink-0">
         <div className="flex items-center gap-2">
           <ChefHat className="text-orange-500" size={24} />

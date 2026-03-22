@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS ingredients (
   cost_per_unit NUMERIC NOT NULL DEFAULT 0,
   stock_quantity NUMERIC NOT NULL DEFAULT 0,
   entry_date TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+  cost_history JSONB DEFAULT '[]'::jsonb,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -71,6 +72,7 @@ CREATE TABLE IF NOT EXISTS sales (
   date TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   total_price NUMERIC NOT NULL,
   profit NUMERIC NOT NULL,
+  deducted_batches JSONB DEFAULT '[]'::jsonb,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
