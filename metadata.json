@@ -1,0 +1,5 @@
+{
+  "name": "DoceGestão",
+  "description": "Aplicativo web mobile-first de gestão para confeitaria com foco em cadastro de receitas, cálculo de custo, precificação, estoque e vendas.",
+  "requestFramePermissions": []
+}
