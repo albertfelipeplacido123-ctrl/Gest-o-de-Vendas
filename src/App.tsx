@@ -1,15 +1,70 @@
-import { useState, ReactNode } from 'react';
-import { LayoutDashboard, ChefHat, Boxes, Package, ShoppingCart, BarChart2 } from 'lucide-react';
+import { useState, ReactNode, useEffect } from 'react';
+import { LayoutDashboard, ChefHat, Boxes, Package, ShoppingCart, LogOut, User as UserIcon } from 'lucide-react';
 import DashboardScreen from './screens/DashboardScreen';
 import RecipesScreen from './screens/RecipesScreen';
 import InventoryScreen from './screens/InventoryScreen';
 import ProductsScreen from './screens/ProductsScreen';
 import SalesScreen from './screens/SalesScreen';
+import AuthLayout from './components/Auth/AuthLayout';
+import LoginForm from './components/Auth/LoginForm';
+import RegisterForm from './components/Auth/RegisterForm';
+import { getSession, logoutUser } from './services/authService';
+import { AuthSession } from './types';
 
 type Tab = 'dashboard' | 'recipes' | 'inventory' | 'products' | 'sales';
+type AuthView = 'login' | 'register';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+  const [session, setSession] = useState<AuthSession | null>(null);
+  const [authView, setAuthView] = useState<AuthView>('login');
+  const [isInitializing, setIsInitializing] = useState(true);
+
+  useEffect(() => {
+    const initSession = async () => {
+      const activeSession = await getSession();
+      if (activeSession) {
+        setSession(activeSession);
+      }
+      setIsInitializing(false);
+    };
+    initSession();
+  }, []);
+
+  const handleLogout = () => {
+    logoutUser();
+    setSession(null);
+    setAuthView('login');
+  };
+
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <AuthLayout 
+        title={authView === 'login' ? 'Bem-vindo de volta' : 'Crie sua conta'}
+        subtitle={authView === 'login' ? 'Entre para gerenciar seu negócio' : 'Comece a organizar sua produção hoje'}
+      >
+        {authView === 'login' ? (
+          <LoginForm 
+            onSuccess={(newSession) => setSession(newSession)} 
+            onToggleRegister={() => setAuthView('register')} 
+          />
+        ) : (
+          <RegisterForm 
+            onSuccess={() => setAuthView('login')} 
+            onToggleLogin={() => setAuthView('login')} 
+          />
+        )}
+      </AuthLayout>
+    );
+  }
 
   const renderScreen = () => {
     switch (activeTab) {
@@ -25,7 +80,23 @@ export default function App() {
   return (
     <div className="flex flex-col h-screen bg-gray-50 text-gray-900 font-sans">
       <header className="bg-black text-white p-4 shadow-md z-10 flex justify-between items-center shrink-0">
-        <h1 className="text-xl font-bold text-orange-500">DoceGestão</h1>
+        <div className="flex items-center gap-2">
+          <ChefHat className="text-orange-500" size={24} />
+          <h1 className="text-xl font-bold text-orange-500">DoceGestão</h1>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="hidden sm:flex items-center gap-2 text-sm text-gray-300">
+            <UserIcon size={16} />
+            <span>{session.user.name}</span>
+          </div>
+          <button 
+            onClick={handleLogout}
+            className="p-2 hover:bg-white/10 rounded-full transition-colors text-gray-300 hover:text-white"
+            title="Sair"
+          >
+            <LogOut size={20} />
+          </button>
+        </div>
       </header>
       
       <main className="flex-1 overflow-y-auto pb-20">

@@ -1,3 +1,21 @@
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  passwordHash: string;
+  createdAt: string;
+}
+
+export interface AuthSession {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  token: string; // A simple random string for session identification
+  expiresAt: string;
+}
+
 export type Unit = 'kg' | 'l' | 'un';
 
 export interface CostHistoryEntry {
