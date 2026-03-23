@@ -387,6 +387,11 @@ export async function saveIngredientEntry(entry: Omit<IngredientEntry, 'id'>) {
 export function subscribeToAllChanges(callback: () => void) {
   console.log('📡 Iniciando conexão em tempo real para todas as tabelas...');
   
+  if (!supabase || typeof supabase.channel !== 'function') {
+    console.error('Supabase client não inicializado corretamente para Realtime.');
+    return { unsubscribe: () => {} };
+  }
+
   const channel = supabase
     .channel('schema-db-changes')
     .on(
@@ -404,6 +409,9 @@ export function subscribeToAllChanges(callback: () => void) {
       }
       if (status === 'CHANNEL_ERROR') {
         console.error('❌ Erro na conexão Realtime:', err);
+      }
+      if (status === 'TIMED_OUT') {
+        console.warn('⚠️ Conexão Realtime expirou (Timed Out).');
       }
     });
     

@@ -27,6 +27,13 @@ export async function registerUser(name: string, email: string, password: string
  * Authenticates a user with Supabase.
  */
 export async function loginUser(email: string, password: string, rememberMe: boolean = false): Promise<AuthSession> {
+  console.log('Tentando login para:', email);
+  
+  if (!supabase || !supabase.auth || typeof supabase.auth.signInWithPassword !== 'function') {
+    console.error('Supabase client ou Auth não inicializado corretamente.');
+    throw new Error('Erro de configuração do Supabase.');
+  }
+
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,

@@ -27,12 +27,19 @@ export default function App() {
 
   useEffect(() => {
     const initSession = async () => {
-      const activeSession = await getSession();
-      if (activeSession) {
-        setSession(activeSession);
-        loadData();
+      try {
+        const activeSession = await getSession();
+        if (activeSession) {
+          setSession(activeSession);
+          if (typeof loadData === 'function') {
+            await loadData();
+          }
+        }
+      } catch (err) {
+        console.error('Erro ao inicializar sessão:', err);
+      } finally {
+        setIsInitializing(false);
       }
-      setIsInitializing(false);
     };
     initSession();
   }, [loadData]);
@@ -40,11 +47,21 @@ export default function App() {
   useEffect(() => {
     if (!session) return;
     
-    // Iniciamos a assinatura e guardamos a função de limpeza
-    const unsubscribeFn = subscribeToChanges();
+    console.log('Iniciando assinatura Realtime...');
+    let unsubscribeFn: any;
+    try {
+      if (typeof subscribeToChanges === 'function') {
+        unsubscribeFn = subscribeToChanges();
+      } else {
+        console.error('subscribeToChanges não é uma função!');
+      }
+    } catch (err) {
+      console.error('Erro ao iniciar assinatura Realtime:', err);
+    }
     
     return () => {
       if (typeof unsubscribeFn === 'function') {
+        console.log('Limpando assinatura Realtime...');
         unsubscribeFn();
       }
     };
@@ -58,9 +75,20 @@ export default function App() {
   };
 
   const handleLoginSuccess = async (newSession: AuthSession) => {
-    setSession(newSession);
-    await loadData();
-    // A assinatura será iniciada pelo useEffect que observa a 'session'
+    console.log('Login bem-sucedido, iniciando carregamento de dados...');
+    try {
+      setSession(newSession);
+      if (typeof loadData === 'function') {
+        await loadData();
+        console.log('Dados carregados com sucesso após login.');
+      } else {
+        console.error('loadData não é uma função!');
+      }
+    } catch (err: any) {
+      console.error('Erro no handleLoginSuccess:', err);
+      // Repassa o erro para ser capturado pelo formulário de login
+      throw err;
+    }
   };
 
   if (isInitializing) {
