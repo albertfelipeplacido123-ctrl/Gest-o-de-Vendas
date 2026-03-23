@@ -45,7 +45,7 @@ export default function InventoryScreen() {
     setIsAdding(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name || !costPerUnit || !stockQuantity) return;
     
     const ingData = {
@@ -57,14 +57,14 @@ export default function InventoryScreen() {
     };
 
     if (editingId) {
-      updateIngredient(editingId, ingData);
+      await updateIngredient(editingId, ingData);
     } else {
-      addIngredient(ingData);
+      await addIngredient(ingData);
     }
     resetForm();
   };
 
-  const handleQuickAdjust = () => {
+  const handleQuickAdjust = async () => {
     if (!adjustingId || !adjustAmount) return;
     
     const ing = ingredients.find(i => i.id === adjustingId);
@@ -82,7 +82,7 @@ export default function InventoryScreen() {
       updateData.entryDate = adjustDate;
     }
 
-    updateIngredient(adjustingId, updateData, adjustType === 'in', amount);
+    await updateIngredient(adjustingId, updateData, adjustType === 'in', amount);
     setAdjustingId(null);
     setAdjustAmount('');
     setAdjustPrice('');

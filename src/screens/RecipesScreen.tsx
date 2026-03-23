@@ -51,7 +51,7 @@ export default function RecipesScreen() {
     setIsAdding(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name || !yieldAmount || recipeIngredients.length === 0) return;
     
     const recipeData = {
@@ -65,9 +65,9 @@ export default function RecipesScreen() {
     };
 
     if (editingId) {
-      updateRecipe(editingId, recipeData);
+      await updateRecipe(editingId, recipeData);
     } else {
-      addRecipe(recipeData);
+      await addRecipe(recipeData);
     }
     resetForm();
   };
@@ -90,9 +90,9 @@ export default function RecipesScreen() {
     setRecipeIngredients(recipeIngredients.filter((_, i) => i !== index));
   };
 
-  const handleProduce = () => {
+  const handleProduce = async () => {
     if (producingRecipeId && produceBatches && expirationDate) {
-      produceRecipe(producingRecipeId, parseFloat(produceBatches), new Date(expirationDate).toISOString());
+      await produceRecipe(producingRecipeId, parseFloat(produceBatches), new Date(expirationDate).toISOString());
       setProducingRecipeId(null);
       setProduceBatches('1');
     }

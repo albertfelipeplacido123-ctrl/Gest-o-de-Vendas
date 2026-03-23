@@ -35,7 +35,7 @@ export default function SalesScreen() {
     setIsAdding(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!selectedProductId || !quantity) return;
     
     const product = availableProducts.find(p => p.id === selectedProductId);
@@ -48,8 +48,8 @@ export default function SalesScreen() {
     
     if (editingSaleId) {
       const originalSale = sales.find(s => s.id === editingSaleId);
-      deleteSale(editingSaleId);
-      addSale({
+      await deleteSale(editingSaleId);
+      await addSale({
         productId: selectedProductId,
         quantity: qty,
         date: originalSale ? originalSale.date : new Date().toISOString(),
@@ -58,7 +58,7 @@ export default function SalesScreen() {
       });
       setEditingSaleId(null);
     } else {
-      addSale({
+      await addSale({
         productId: selectedProductId,
         quantity: qty,
         date: new Date().toISOString(),
@@ -79,9 +79,9 @@ export default function SalesScreen() {
     setQuantity('1');
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (saleToDelete) {
-      deleteSale(saleToDelete);
+      await deleteSale(saleToDelete);
       setSaleToDelete(null);
     }
   };

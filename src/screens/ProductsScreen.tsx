@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { calculateRecipeCost, formatCurrency } from '../utils/calculations';
-import { Edit2, X, Check, Trash2 } from 'lucide-react';
+import { Edit2, X, Check, Trash2, Package } from 'lucide-react';
 
 export default function ProductsScreen() {
   const { products, recipes, ingredients, updateProduct, registerLoss } = useStore();
@@ -17,17 +17,17 @@ export default function ProductsScreen() {
     setEditingId(product.id);
   };
 
-  const handleSave = (id: string) => {
-    updateProduct(id, { customPrice: parseFloat(customPrice) });
+  const handleSave = async (id: string) => {
+    await updateProduct(id, { customPrice: parseFloat(customPrice) });
     setEditingId(null);
   };
 
-  const handleRegisterLoss = () => {
+  const handleRegisterLoss = async () => {
     if (!lossModal || !lossQuantity) return;
     const qty = parseFloat(lossQuantity);
     if (qty <= 0 || qty > lossModal.maxQuantity) return;
 
-    registerLoss({
+    await registerLoss({
       productId: lossModal.productId,
       batchId: lossModal.batchId,
       quantity: qty,
@@ -41,7 +41,10 @@ export default function ProductsScreen() {
 
   const productsWithDetails = products.map(p => {
     const recipe = recipes.find(r => r.id === p.recipeId);
-    if (!recipe) return null;
+    if (!recipe) {
+      console.warn(`Product ${p.id} has no matching recipe ${p.recipeId}`);
+      return null;
+    }
     
     const costs = calculateRecipeCost(recipe, ingredients);
     const finalPrice = p.customPrice || costs.suggestedUnitPrice;
@@ -77,7 +80,15 @@ export default function ProductsScreen() {
       
       <div className="space-y-3">
         {filteredProducts.length === 0 ? (
-          <p className="text-center text-gray-500 py-8">Nenhum produto disponível. Cadastre receitas primeiro.</p>
+          <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-gray-300">
+            <Package className="mx-auto text-gray-300 mb-2" size={48} />
+            <p className="text-gray-500">Nenhum produto disponível.</p>
+            {recipes.length === 0 ? (
+              <p className="text-xs text-gray-400 mt-1">Cadastre receitas primeiro para gerar produtos.</p>
+            ) : (
+              <p className="text-xs text-gray-400 mt-1">Produza suas receitas para ver o estoque aqui.</p>
+            )}
+          </div>
         ) : (
           filteredProducts.map(product => (
             <div key={product.id} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">

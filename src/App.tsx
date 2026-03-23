@@ -10,6 +10,7 @@ import LoginForm from './components/Auth/LoginForm';
 import RegisterForm from './components/Auth/RegisterForm';
 import { getSession, logoutUser } from './services/authService';
 import { AuthSession } from './types';
+import { useStore } from './store/useStore';
 
 type Tab = 'dashboard' | 'recipes' | 'inventory' | 'products' | 'sales';
 type AuthView = 'login' | 'register';
@@ -19,22 +20,46 @@ export default function App() {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [authView, setAuthView] = useState<AuthView>('login');
   const [isInitializing, setIsInitializing] = useState(true);
+  const loadData = useStore(state => state.loadData);
+  const subscribeToChanges = useStore(state => state.subscribeToChanges);
+  const clearData = useStore(state => state.clearData);
+  const isLoading = useStore(state => state.isLoading);
 
   useEffect(() => {
     const initSession = async () => {
       const activeSession = await getSession();
       if (activeSession) {
         setSession(activeSession);
+        await loadData();
       }
       setIsInitializing(false);
     };
     initSession();
-  }, []);
+  }, [loadData]);
+
+  useEffect(() => {
+    if (!session) return;
+    
+    console.log('Iniciando assinaturas em tempo real...');
+    const unsubscribe = subscribeToChanges();
+    
+    return () => {
+      console.log('Limpando assinaturas...');
+      if (unsubscribe) unsubscribe();
+    };
+  }, [session, subscribeToChanges]);
 
   const handleLogout = () => {
     logoutUser();
     setSession(null);
+    clearData();
     setAuthView('login');
+  };
+
+  const handleLoginSuccess = async (newSession: AuthSession) => {
+    setSession(newSession);
+    await loadData();
+    // A assinatura será iniciada pelo useEffect que observa a 'session'
   };
 
   if (isInitializing) {
@@ -53,7 +78,7 @@ export default function App() {
       >
         {authView === 'login' ? (
           <LoginForm 
-            onSuccess={(newSession) => setSession(newSession)} 
+            onSuccess={handleLoginSuccess} 
             onToggleRegister={() => setAuthView('register')} 
           />
         ) : (
@@ -78,11 +103,22 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 text-gray-900 font-sans">
+    <div className="flex flex-col h-screen bg-gray-50 text-gray-900 font-sans relative">
+      {isLoading && (
+        <div className="absolute inset-0 bg-white/50 z-50 flex items-center justify-center backdrop-blur-[1px]">
+          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-orange-500"></div>
+        </div>
+      )}
       <header className="bg-black text-white p-4 shadow-md z-10 flex justify-between items-center shrink-0">
         <div className="flex items-center gap-2">
           <ChefHat className="text-orange-500" size={24} />
-          <h1 className="text-xl font-bold text-orange-500">DoceGestão</h1>
+          <div className="flex flex-col">
+            <h1 className="text-xl font-bold text-orange-500 leading-none">DoceGestão</h1>
+            <span className="text-[10px] text-green-400 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
+              Sincronizado
+            </span>
+          </div>
         </div>
         <div className="flex items-center gap-4">
           <div className="hidden sm:flex items-center gap-2 text-sm text-gray-300">
