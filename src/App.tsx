@@ -30,7 +30,7 @@ export default function App() {
       const activeSession = await getSession();
       if (activeSession) {
         setSession(activeSession);
-        await loadData();
+        loadData();
       }
       setIsInitializing(false);
     };
@@ -40,12 +40,13 @@ export default function App() {
   useEffect(() => {
     if (!session) return;
     
-    console.log('Iniciando assinaturas em tempo real...');
-    const unsubscribe = subscribeToChanges();
+    // Iniciamos a assinatura e guardamos a função de limpeza
+    const unsubscribeFn = subscribeToChanges();
     
     return () => {
-      console.log('Limpando assinaturas...');
-      if (unsubscribe) unsubscribe();
+      if (typeof unsubscribeFn === 'function') {
+        unsubscribeFn();
+      }
     };
   }, [session, subscribeToChanges]);
 
