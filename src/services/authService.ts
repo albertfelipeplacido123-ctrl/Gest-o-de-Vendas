@@ -30,14 +30,20 @@ export async function loginUser(email: string, password: string, rememberMe: boo
   console.log('Tentando login para:', email);
   
   if (!supabase || !supabase.auth || typeof supabase.auth.signInWithPassword !== 'function') {
-    console.error('Supabase client ou Auth não inicializado corretamente.');
+    console.error('Supabase client ou Auth não inicializado corretamente.', {
+      supabase: !!supabase,
+      auth: !!(supabase && supabase.auth),
+      signInWithPassword: !!(supabase && supabase.auth && supabase.auth.signInWithPassword)
+    });
     throw new Error('Erro de configuração do Supabase.');
   }
 
+  console.log('Chamando supabase.auth.signInWithPassword...');
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
+  console.log('Resposta do signInWithPassword recebida.');
 
   if (error) {
     if (error.message.includes('Email rate limit exceeded')) {

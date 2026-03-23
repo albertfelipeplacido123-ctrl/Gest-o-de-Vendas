@@ -2,7 +2,6 @@ import { useState, FormEvent } from 'react';
 import { Eye, EyeOff, Mail, Lock, Loader2 } from 'lucide-react';
 import { loginUser } from '../../services/authService';
 import { AuthSession } from '../../types';
-import { useStore } from '../../store/useStore';
 
 interface LoginFormProps {
   onSuccess: (session: AuthSession) => void;
@@ -16,7 +15,6 @@ export default function LoginForm({ onSuccess, onToggleRegister }: LoginFormProp
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const fetchData = useStore(state => state.fetchData);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -24,10 +22,23 @@ export default function LoginForm({ onSuccess, onToggleRegister }: LoginFormProp
     setIsLoading(true);
 
     try {
+      console.log('Iniciando chamada para loginUser...');
+      if (typeof loginUser !== 'function') {
+        console.error('loginUser não é uma função!');
+        throw new Error('Erro interno: loginUser não é uma função.');
+      }
+      
       const session = await loginUser(email, password, rememberMe);
-      await fetchData();
-      onSuccess(session);
+      console.log('Login bem-sucedido no authService, chamando onSuccess...');
+      
+      if (typeof onSuccess === 'function') {
+        onSuccess(session);
+      } else {
+        console.error('onSuccess não é uma função!');
+        throw new Error('Erro interno: onSuccess não é uma função.');
+      }
     } catch (err: any) {
+      console.error('Erro capturado no LoginForm:', err);
       setError(err.message || 'Ocorreu um erro ao entrar.');
     } finally {
       setIsLoading(false);
